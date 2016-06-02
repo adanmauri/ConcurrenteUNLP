@@ -1,0 +1,190 @@
+# Tema 5 - Rendevouz (ADA)
+
+### Tabla de contenidos
+  * [Conceptos](#conceptos)
+  * [Tareas](#tye)
+  * [Sincronización](#sync)
+  * [Selección](#select)
+
+## 1. Conceptos <a id="conceptos"></a>
+
+### Rendevouz
+
+* Es implementado como **Pasaje de Parámetros Sincrónico**, por lo que cuando un proceso realiza una llamada este **se queda esperando** que el destinatario responda y finalice.
+
+### Task y Entry
+
+* En Ada, a la unidad de proceso secuencial que puede ser ejecutada paralelamente se le denomina **task**. Es la representación explícita de un proceso (o tarea).
+
+* La tarea de Ada presenta **una especificación** (interfaz con el exterior) y **un cuerpo** (descripción del comportamiento dinámico).
+
+* Un **task** puede tener una especificación con entry, los cuales **funcionan como procedimientos** para ser llamados entre otros entrys,
+siendo la vía de comunicación entre ellos.
+
+## 2. Tareas <a id="tye"></a>
+
+### Task y Entry
+
+* #### Definición
+
+  - Es la representación explícita de un proceso o tarea.
+  - Se debe declarar una especificación (interfaz) y un cuerpo (comportamiento)
+  - Los entry funcionan como procedimientos para ser llamados por otros procesos, **no retornan valores**, sus **parámetros** son **por referencia**.
+  
+
+* #### Declaración
+
+    Especificación de las tareas sin ENTRY
+
+    ```ada
+    TASK Nombre;
+    
+    TASK TYPE Nombre;
+    ```
+    
+    Especificación de las tareas con ENTRY
+    
+    ```ada
+    TASK [TYPE] Nombre IS
+        ENTRY e1;
+        ENTRY e2 (p1: IN integer; p2: OUT char; p3: IN OUT float);
+    END Nombre;
+    ```
+
+### Body
+El cuerpo de las tareas de define posteriormente con el mismo nombre con el que fue definido en la especificación.
+    
+```ada
+TASK BODY Nombre IS
+    -- Codigo que realiza la Tarea;
+END Nombre;
+```
+
+## 3. Sincronización <a id="sync"></a>
+
+### Envío de información
+
+#### Conceptos
+
+* **Entry call** para enviar información (o avisar algún evento).
+
+* Se pueden hacer en cualquier tarea o en el programa principal.
+
+#### Sintáxis
+
+```ada
+NombreTarea.NombreEntry(parametros);
+```
+
+### Atención de pedidos
+
+#### Conceptos
+
+* La forma de aceptar una entry call y ejecutar las sentencias que se deseen es mediante la sentencia **accept**, dentro del cuerpo de la tarea que acepta la cita.
+
+* Cada sentencia entry debe corresponderse con una sentencia accept.
+
+* El código existente dentro en la sentencia accept es ejecutado por la tarea propietaria y no por la parte invocante, como en los procedimientos.
+
+* Hasta que la tarea no llegue a la ejecución de dicha sentencia accept, no puede ser invocado el punto de entrada.
+
+* **Quien invoca queda suspendido** hasta que termine la ejecución de la sentencia accept. Éste es el fundamento de la cita. **Es bloqueante**.
+
+* El accept se puede hacer en el cuerpo de la tare a que ha declarado el entry en su especificación.
+
+* El accept **es bloqueante**, por lo que hasta no recibir un pedido esté se encuentra en espera.
+
+#### Sintáxis
+
+**Accept** para atender un pedido de entry call **sin cuerpo** (sólo para recibir el aviso de un evento para sincronización).
+
+```ada
+ACCEPT NombreEntry (p1: IN integer; p3: I N OUT float);
+```
+
+**Accept** para atender un pedido de entry call **con cuerpo**.
+
+```ada
+ACCEPT NombreEntry (p1: IN integer; p3: I N OUT float) do
+  -- Cuerpo del accept donde se pued e acceder a los parámetros p1 y
+  -- p3. Fuera del entry estos parámetros no se pueden usar.
+END NombreEntry;
+```
+
+## 4. Selección <a id="select"></a>
+
+#### Conceptos
+
+* Mediante la instrucción **select** se le permite a una tarea seleccionar entre varios posibles pedidos.
+
+### Select para ENTRY CALL
+
+* Sólo puede ponerse un entry call y una única opción (OR DELAY o ELSE);
+
+**SELECT ...OR DELAY**: espera a lo sumo x tiempo a que la tarea correspondiente
+haga el accept del entry call realizado. Si pasó el tiempo entonces realiza el código opcional.
+
+```ada
+SELECT
+  NombreTarea.NombreEntry(Parame tros);
+  -- Sentencias;
+OR DELAY x
+  -- Código opcional;
+END SELECT;
+```
+
+**SELECT ...ELSE**: si la tarea correspondiente no puede realizar el accept
+inmediatamente (en el momento que el procesador está ejecutando esa línea de
+código) entonces se ejecuta el código opcional.
+
+```ada
+SELECT
+  NombreTarea.NombreEntry(Parametros);
+  -- Sentencias;
+ELSE
+  -- Código opcional;
+END SELECT;
+```
+
+### Select para ACCEPT
+
+* En los select para los accept **puede haber más de una alternativa de accept**,
+pero no puede haber alternativas de entry call (no se puede mezclar accept con entries).
+
+* Cada alternativas de ACCEPT puede ser o no condicional (WHEN).
+
+* Se evalúa la condición booleana del WHEN de cada alternativa (si no lo tiene se considera TRUE).
+Si todas son FALSAS se sale del select.
+
+* Después de cada condición por medio de WHEN siempre debe ir un ACCEPT.
+
+* De las alternativas cuyo condición es verdadera **se elige en forma no
+deterministica una que pueda ejecutarse inmediatamente** (es decir que tiene
+un entry call pendiente). Si ninguna de ellas se puede ejecutar
+inmediatamente el select se bloquea hasta que haya un entry call para
+alguna alternatica cuya condición sea TRUE.
+
+* Se puede poner una opción OR DELAY o ELSE.
+
+```ada
+SELECT
+    ACCEPT e1 (parametros);
+    -- Sentencias1;
+OR
+    ACCEPT e2 (parametros) IS
+        -- cuerpo del accept;
+    END e2;
+OR
+    WHEN (condicion) => ACCEPT e3 (parametros) IS
+        -- cuerpo del accept;
+    END e3;
+    -- Sentencias3
+END SELECT;
+```
+
+Dentro de una condición por medio de WHEN se puede preguntar por la cantidad
+de ENTRY CALLs pendientes. 
+
+```ada
+NombreEntry'count
+```
